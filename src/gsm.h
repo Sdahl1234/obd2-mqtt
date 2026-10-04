@@ -225,6 +225,15 @@ public:
     void enableGPS();
 
     /**
+     * Re-enables GPS with a bounded number of attempts, safe to call from the reconnect loop
+     * (unlike enableGPS(), this won't block forever if the modem keeps refusing).
+     *
+     * @param maxAttempts the maximum number of attempts before giving up
+     * @return <code>true</code> if GPS was (re-)enabled, <code>false</code> if all attempts failed
+     */
+    bool reenableGPS(uint8_t maxAttempts = 5);
+
+    /**
      * Checks if GPS is enabled.
      *
      * @return <code>true</code> if is enabled or <code>false</code> on a failure

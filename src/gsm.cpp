@@ -436,11 +436,6 @@ bool GSM::checkNetwork(bool resetConnection) {
             }
             Serial.println("...success");
             reconnectAttempts = 0;
-
-            // a hardware modem reset clears all AT-configured state, including GPS enable/baud
-            if (hasGPSLocation()) {
-                enableGPS();
-            }
         }
 
 #if defined(LILYGO_T_A7670) or defined(LILYGO_T_CALL_A7670_V1_0) or defined(LILYGO_T_CALL_A7670_V1_1) or defined(LILYGO_T_A7608X) or defined(LILYGO_SIM7000G) or defined(LILYGO_SIM7070G)
@@ -463,6 +458,11 @@ bool GSM::checkNetwork(bool resetConnection) {
         if (modem.isNetworkConnected()) {
             reconnectAttempts = 0;
             Serial.println("Network reconnected");
+
+            // any reconnect cycle can leave GPS/GNSS disabled on the modem, not just a hard reset
+            if (hasGPSLocation()) {
+                reenableGPS();
+            }
         }
 
         if (isUseGPRS()) {
@@ -560,6 +560,31 @@ void GSM::enableGPS() {
 #endif
 #elif defined LILYGO_GPS_SHIELD
     SerialGPS.begin(9600, SERIAL_8N1, BOARD_GPS_RX_PIN, BOARD_GPS_TX_PIN);
+#endif
+}
+
+bool GSM::reenableGPS(const uint8_t maxAttempts) {
+#if defined TINY_GSM_MODEM_HAS_GPS
+#if !defined(TINY_GSM_MODEM_SARAR5) // not needed for this module
+    Serial.print("Re-enabling GPS/GNSS/GLONASS...");
+    for (uint8_t attempt = 0; attempt < maxAttempts; ++attempt) {
+        if (modem.enableGPS(MODEM_GPS_ENABLE_GPIO)) {
+            modem.setGPSBaud(115200);
+            Serial.println("...success");
+            return true;
+        }
+        Serial.print(".");
+        delay(500);
+    }
+    Serial.println("...fail");
+    return false;
+#else
+    return true;
+#endif
+#elif defined LILYGO_GPS_SHIELD
+    return true;
+#else
+    return true;
 #endif
 }
 

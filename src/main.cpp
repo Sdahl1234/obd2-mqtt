@@ -733,14 +733,15 @@ bool sendLocationData() {
 
     consoleSendHeader("location");
 
-    if (GSM::hasGSMLocation()) {
+    // (0,0) is never a real fix here, just the uninitialized default before any successful read
+    if (GSM::hasGSMLocation() && (gsmLatitude != 0 || gsmLongitude != 0)) {
         allSendsSuccessed |= mqtt.sendTopicUpdate(
             HA_T_GSM_LOC,
             buildLocationAttrib(gsmLatitude, gsmLongitude, gsmAccuracy),
             true
         );
     }
-    if (GSM::hasGPSLocation()) {
+    if (GSM::hasGPSLocation() && (gpsLatitude != 0 || gpsLongitude != 0)) {
         allSendsSuccessed |= mqtt.sendTopicUpdate(
             HA_T_GPS_LOC,
             buildLocationAttrib(gpsLatitude, gpsLongitude, gpsAccuracy),
