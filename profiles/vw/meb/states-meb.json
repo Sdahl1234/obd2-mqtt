@@ -1,0 +1,1887 @@
+[
+  {
+    "type": 0,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "batteryVoltage",
+    "description": "12V Battery Voltage",
+    "icon": "car-battery",
+    "unit": "V",
+    "deviceClass": "voltage",
+    "measurement": true,
+    "diagnostic": false,
+    "readFunc": "batteryVoltage",
+    "value": {
+      "format": "%4.2f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "int",
+    "enabled": true,
+    "visible": false,
+    "interval": 30000,
+    "name": "socRaw",
+    "description": "SoC raw (BMS 0x028C)",
+    "icon": "battery",
+    "unit": "",
+    "deviceClass": "",
+    "measurement": true,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 652,
+      "header": 402391163,
+      "numResponses": 1,
+      "numExpectedBytes": 1,
+      "scaleFactor": "1"
+    },
+    "value": {
+      "format": "%d"
+    }
+  },
+  {
+    "type": 1,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "soc",
+    "description": "State of Charge (display)",
+    "icon": "battery",
+    "unit": "%",
+    "deviceClass": "battery",
+    "measurement": true,
+    "diagnostic": false,
+    "expr": "max(min($socRaw * 0.4425 - 6.1947, 100), 0)",
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 1,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "socBms",
+    "description": "State of Charge (BMS gross)",
+    "icon": "battery-high",
+    "unit": "%",
+    "deviceClass": "battery",
+    "measurement": true,
+    "diagnostic": true,
+    "expr": "$socRaw * 0.4",
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "int",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "speed",
+    "description": "Speed",
+    "icon": "speedometer",
+    "unit": "km/h",
+    "deviceClass": "speed",
+    "measurement": true,
+    "diagnostic": false,
+    "pid": {
+      "service": 34,
+      "pid": 62477,
+      "header": 402391163,
+      "numResponses": 1,
+      "numExpectedBytes": 1,
+      "scaleFactor": "1"
+    },
+    "value": {
+      "format": "%d"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "int",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "operationMode",
+    "description": "Operation mode (0=standby, 1=driving, 4=AC charging, 6=DC charging)",
+    "icon": "car-info",
+    "unit": "",
+    "deviceClass": "",
+    "measurement": false,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 29768,
+      "header": 402391163,
+      "numResponses": 1,
+      "numExpectedBytes": 1,
+      "scaleFactor": "1"
+    },
+    "value": {
+      "format": "%d"
+    }
+  },
+  {
+    "type": 1,
+    "valueType": "bool",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "charging",
+    "description": "Charging",
+    "icon": "ev-station",
+    "unit": "",
+    "deviceClass": "",
+    "measurement": false,
+    "diagnostic": false,
+    "expr": "min(max($operationMode - 3, 0), 1)",
+    "value": {}
+  },
+  {
+    "type": 1,
+    "valueType": "bool",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "driving",
+    "description": "Driving",
+    "icon": "car",
+    "unit": "",
+    "deviceClass": "",
+    "measurement": false,
+    "diagnostic": false,
+    "expr": "min($operationMode, 1) - min(max($operationMode - 3, 0), 1)",
+    "value": {}
+  },
+  {
+    "type": 0,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "hvVoltage",
+    "description": "HV Battery Voltage",
+    "icon": "flash",
+    "unit": "V",
+    "deviceClass": "voltage",
+    "measurement": true,
+    "diagnostic": false,
+    "pid": {
+      "service": 34,
+      "pid": 7739,
+      "header": 402391163,
+      "numResponses": 1,
+      "numExpectedBytes": 2,
+      "scaleFactor": "1.0 / 4.0"
+    },
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "int",
+    "enabled": true,
+    "visible": false,
+    "interval": 30000,
+    "name": "hvCurrentRaw",
+    "description": "HV Battery Current raw (0x1E3D, 2 CAN frames)",
+    "icon": "current-dc",
+    "unit": "",
+    "deviceClass": "",
+    "measurement": true,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 7741,
+      "header": 402391163,
+      "numResponses": 2,
+      "numExpectedBytes": 5,
+      "scaleFactor": "1"
+    },
+    "value": {
+      "format": "%d"
+    }
+  },
+  {
+    "type": 1,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "hvCurrent",
+    "description": "HV Battery Current (+ charge / - discharge)",
+    "icon": "current-dc",
+    "unit": "A",
+    "deviceClass": "current",
+    "measurement": true,
+    "diagnostic": false,
+    "expr": "floor($hvCurrentRaw / 256) / 100 - 1500",
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 1,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "hvPower",
+    "description": "HV Battery Power (+ charge / - discharge)",
+    "icon": "lightning-bolt",
+    "unit": "kW",
+    "deviceClass": "power",
+    "measurement": true,
+    "diagnostic": false,
+    "expr": "$hvVoltage * $hvCurrent / 1000",
+    "value": {
+      "format": "%4.2f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "hvBatTemp",
+    "description": "HV Battery Temperature",
+    "icon": "thermometer",
+    "unit": "°C",
+    "deviceClass": "temperature",
+    "measurement": true,
+    "diagnostic": false,
+    "pid": {
+      "service": 34,
+      "pid": 10763,
+      "header": 402391163,
+      "numResponses": 1,
+      "numExpectedBytes": 1,
+      "scaleFactor": "1.0 / 2.0",
+      "bias": -40
+    },
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "int",
+    "enabled": true,
+    "visible": false,
+    "interval": 30000,
+    "name": "hvBatTempMaxRaw",
+    "description": "HV Battery Max Temperature raw (0x1E0E)",
+    "icon": "thermometer-high",
+    "unit": "",
+    "deviceClass": "",
+    "measurement": true,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 7694,
+      "header": 402391163,
+      "numResponses": 1,
+      "numExpectedBytes": 4,
+      "responseFormat": 3,
+      "scaleFactor": "1"
+    },
+    "value": {
+      "format": "%d"
+    }
+  },
+  {
+    "type": 1,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "hvBatTempMax",
+    "description": "HV Battery Max Temperature",
+    "icon": "thermometer-high",
+    "unit": "°C",
+    "deviceClass": "temperature",
+    "measurement": true,
+    "diagnostic": true,
+    "expr": "floor($hvBatTempMaxRaw / 65536) / 64",
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "int",
+    "enabled": true,
+    "visible": false,
+    "interval": 30000,
+    "name": "hvBatTempMinRaw",
+    "description": "HV Battery Min Temperature raw (0x1E0F)",
+    "icon": "thermometer-low",
+    "unit": "",
+    "deviceClass": "",
+    "measurement": true,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 7695,
+      "header": 402391163,
+      "numResponses": 1,
+      "numExpectedBytes": 4,
+      "responseFormat": 3,
+      "scaleFactor": "1"
+    },
+    "value": {
+      "format": "%d"
+    }
+  },
+  {
+    "type": 1,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "hvBatTempMin",
+    "description": "HV Battery Min Temperature",
+    "icon": "thermometer-low",
+    "unit": "°C",
+    "deviceClass": "temperature",
+    "measurement": true,
+    "diagnostic": true,
+    "expr": "floor($hvBatTempMinRaw / 65536) / 64",
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "int",
+    "enabled": true,
+    "visible": false,
+    "interval": 30000,
+    "name": "cellVoltMaxRaw",
+    "description": "HV Highest Cell Voltage raw (0x1E33)",
+    "icon": "battery-arrow-up",
+    "unit": "",
+    "deviceClass": "",
+    "measurement": true,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 7731,
+      "header": 402391163,
+      "numResponses": 1,
+      "numExpectedBytes": 4,
+      "responseFormat": 3,
+      "scaleFactor": "1"
+    },
+    "value": {
+      "format": "%d"
+    }
+  },
+  {
+    "type": 1,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "cellVoltMax",
+    "description": "HV Highest Cell Voltage",
+    "icon": "battery-arrow-up",
+    "unit": "V",
+    "deviceClass": "voltage",
+    "measurement": true,
+    "diagnostic": true,
+    "expr": "floor($cellVoltMaxRaw / 65536) / 4096",
+    "value": {
+      "format": "%4.3f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "int",
+    "enabled": true,
+    "visible": false,
+    "interval": 30000,
+    "name": "cellVoltMinRaw",
+    "description": "HV Lowest Cell Voltage raw (0x1E34)",
+    "icon": "battery-arrow-down",
+    "unit": "",
+    "deviceClass": "",
+    "measurement": true,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 7732,
+      "header": 402391163,
+      "numResponses": 1,
+      "numExpectedBytes": 4,
+      "responseFormat": 3,
+      "scaleFactor": "1"
+    },
+    "value": {
+      "format": "%d"
+    }
+  },
+  {
+    "type": 1,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "cellVoltMin",
+    "description": "HV Lowest Cell Voltage",
+    "icon": "battery-arrow-down",
+    "unit": "V",
+    "deviceClass": "voltage",
+    "measurement": true,
+    "diagnostic": true,
+    "expr": "floor($cellVoltMinRaw / 65536) / 4096",
+    "value": {
+      "format": "%4.3f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "maxChargeCurrent",
+    "description": "Dynamic Charge Current Limit",
+    "icon": "battery-charging-high",
+    "unit": "A",
+    "deviceClass": "current",
+    "measurement": true,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 7707,
+      "header": 402391163,
+      "numResponses": 1,
+      "numExpectedBytes": 2,
+      "scaleFactor": "1.0 / 5.0"
+    },
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "maxDischargeCurrent",
+    "description": "Dynamic Discharge Current Limit",
+    "icon": "battery-arrow-down-outline",
+    "unit": "A",
+    "deviceClass": "current",
+    "measurement": true,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 7708,
+      "header": 402391163,
+      "numResponses": 1,
+      "numExpectedBytes": 2,
+      "scaleFactor": "1.0 / 5.0"
+    },
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "int",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "odometer",
+    "description": "Odometer",
+    "icon": "counter",
+    "unit": "km",
+    "deviceClass": "distance",
+    "measurement": true,
+    "diagnostic": false,
+    "pid": {
+      "service": 34,
+      "pid": 10586,
+      "header": 402391158,
+      "numResponses": 1,
+      "numExpectedBytes": 3,
+      "scaleFactor": "1"
+    },
+    "value": {
+      "format": "%d"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "int",
+    "enabled": true,
+    "visible": false,
+    "interval": 30000,
+    "name": "gearRaw",
+    "description": "Gear raw (0x210E)",
+    "icon": "car-shift-pattern",
+    "unit": "",
+    "deviceClass": "",
+    "measurement": false,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 8462,
+      "header": 402391158,
+      "numResponses": 1,
+      "numExpectedBytes": 2,
+      "scaleFactor": "1"
+    },
+    "value": {
+      "format": "%d"
+    }
+  },
+  {
+    "type": 1,
+    "valueType": "int",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "gear",
+    "description": "Gear (5=D, 12=B, 7=R, 6=N, 8=P)",
+    "icon": "car-shift-pattern",
+    "unit": "",
+    "deviceClass": "",
+    "measurement": false,
+    "diagnostic": false,
+    "expr": "$gearRaw & 255",
+    "value": {
+      "format": "%d"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 60000,
+    "name": "outsideTemp",
+    "description": "Outside Temperature",
+    "icon": "thermometer",
+    "unit": "°C",
+    "deviceClass": "temperature",
+    "measurement": true,
+    "diagnostic": false,
+    "pid": {
+      "service": 34,
+      "pid": 9737,
+      "header": 1862,
+      "numResponses": 1,
+      "numExpectedBytes": 1,
+      "scaleFactor": "1.0 / 2.0",
+      "bias": -50
+    },
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 60000,
+    "name": "insideTemp",
+    "description": "Inside Temperature",
+    "icon": "home-thermometer",
+    "unit": "°C",
+    "deviceClass": "temperature",
+    "measurement": true,
+    "diagnostic": false,
+    "pid": {
+      "service": 34,
+      "pid": 9747,
+      "header": 1862,
+      "numResponses": 1,
+      "numExpectedBytes": 2,
+      "scaleFactor": "1.0 / 5.0",
+      "bias": -40
+    },
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 300000,
+    "name": "hvMaxEnergy",
+    "description": "HV Battery Max Energy Content",
+    "icon": "battery-heart-variant",
+    "unit": "kWh",
+    "deviceClass": "energy_storage",
+    "measurement": true,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 10930,
+      "header": 1808,
+      "numResponses": 1,
+      "numExpectedBytes": 4,
+      "scaleFactor": "1.0 / 1310770.0"
+    },
+    "value": {
+      "format": "%.2f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 60000,
+    "name": "hvTempPoint01",
+    "description": "HV Battery Temperature Point 01",
+    "icon": "thermometer",
+    "unit": "°C",
+    "deviceClass": "temperature",
+    "measurement": true,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 7854,
+      "header": 402391163,
+      "numResponses": 1,
+      "numExpectedBytes": 2,
+      "scaleFactor": "1.0 / 8.0",
+      "bias": "-40"
+    },
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 60000,
+    "name": "hvTempPoint02",
+    "description": "HV Battery Temperature Point 02",
+    "icon": "thermometer",
+    "unit": "°C",
+    "deviceClass": "temperature",
+    "measurement": true,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 7855,
+      "header": 402391163,
+      "numResponses": 1,
+      "numExpectedBytes": 2,
+      "scaleFactor": "1.0 / 8.0",
+      "bias": "-40"
+    },
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 60000,
+    "name": "hvTempPoint03",
+    "description": "HV Battery Temperature Point 03",
+    "icon": "thermometer",
+    "unit": "°C",
+    "deviceClass": "temperature",
+    "measurement": true,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 7856,
+      "header": 402391163,
+      "numResponses": 1,
+      "numExpectedBytes": 2,
+      "scaleFactor": "1.0 / 8.0",
+      "bias": "-40"
+    },
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 60000,
+    "name": "hvTempPoint04",
+    "description": "HV Battery Temperature Point 04",
+    "icon": "thermometer",
+    "unit": "°C",
+    "deviceClass": "temperature",
+    "measurement": true,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 7857,
+      "header": 402391163,
+      "numResponses": 1,
+      "numExpectedBytes": 2,
+      "scaleFactor": "1.0 / 8.0",
+      "bias": "-40"
+    },
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 60000,
+    "name": "hvTempPoint05",
+    "description": "HV Battery Temperature Point 05",
+    "icon": "thermometer",
+    "unit": "°C",
+    "deviceClass": "temperature",
+    "measurement": true,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 7858,
+      "header": 402391163,
+      "numResponses": 1,
+      "numExpectedBytes": 2,
+      "scaleFactor": "1.0 / 8.0",
+      "bias": "-40"
+    },
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 60000,
+    "name": "hvTempPoint06",
+    "description": "HV Battery Temperature Point 06",
+    "icon": "thermometer",
+    "unit": "°C",
+    "deviceClass": "temperature",
+    "measurement": true,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 7859,
+      "header": 402391163,
+      "numResponses": 1,
+      "numExpectedBytes": 2,
+      "scaleFactor": "1.0 / 8.0",
+      "bias": "-40"
+    },
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 60000,
+    "name": "hvTempPoint07",
+    "description": "HV Battery Temperature Point 07",
+    "icon": "thermometer",
+    "unit": "°C",
+    "deviceClass": "temperature",
+    "measurement": true,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 7860,
+      "header": 402391163,
+      "numResponses": 1,
+      "numExpectedBytes": 2,
+      "scaleFactor": "1.0 / 8.0",
+      "bias": "-40"
+    },
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 60000,
+    "name": "hvTempPoint08",
+    "description": "HV Battery Temperature Point 08",
+    "icon": "thermometer",
+    "unit": "°C",
+    "deviceClass": "temperature",
+    "measurement": true,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 7861,
+      "header": 402391163,
+      "numResponses": 1,
+      "numExpectedBytes": 2,
+      "scaleFactor": "1.0 / 8.0",
+      "bias": "-40"
+    },
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 60000,
+    "name": "hvTempPoint09",
+    "description": "HV Battery Temperature Point 09",
+    "icon": "thermometer",
+    "unit": "°C",
+    "deviceClass": "temperature",
+    "measurement": true,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 7862,
+      "header": 402391163,
+      "numResponses": 1,
+      "numExpectedBytes": 2,
+      "scaleFactor": "1.0 / 8.0",
+      "bias": "-40"
+    },
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 60000,
+    "name": "hvTempPoint10",
+    "description": "HV Battery Temperature Point 10",
+    "icon": "thermometer",
+    "unit": "°C",
+    "deviceClass": "temperature",
+    "measurement": true,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 7863,
+      "header": 402391163,
+      "numResponses": 1,
+      "numExpectedBytes": 2,
+      "scaleFactor": "1.0 / 8.0",
+      "bias": "-40"
+    },
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 60000,
+    "name": "hvTempPoint11",
+    "description": "HV Battery Temperature Point 11",
+    "icon": "thermometer",
+    "unit": "°C",
+    "deviceClass": "temperature",
+    "measurement": true,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 7864,
+      "header": 402391163,
+      "numResponses": 1,
+      "numExpectedBytes": 2,
+      "scaleFactor": "1.0 / 8.0",
+      "bias": "-40"
+    },
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 60000,
+    "name": "hvTempPoint12",
+    "description": "HV Battery Temperature Point 12",
+    "icon": "thermometer",
+    "unit": "°C",
+    "deviceClass": "temperature",
+    "measurement": true,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 7865,
+      "header": 402391163,
+      "numResponses": 1,
+      "numExpectedBytes": 2,
+      "scaleFactor": "1.0 / 8.0",
+      "bias": "-40"
+    },
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 60000,
+    "name": "hvTempPoint13",
+    "description": "HV Battery Temperature Point 13",
+    "icon": "thermometer",
+    "unit": "°C",
+    "deviceClass": "temperature",
+    "measurement": true,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 7866,
+      "header": 402391163,
+      "numResponses": 1,
+      "numExpectedBytes": 2,
+      "scaleFactor": "1.0 / 8.0",
+      "bias": "-40"
+    },
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 60000,
+    "name": "hvTempPoint14",
+    "description": "HV Battery Temperature Point 14",
+    "icon": "thermometer",
+    "unit": "°C",
+    "deviceClass": "temperature",
+    "measurement": true,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 7867,
+      "header": 402391163,
+      "numResponses": 1,
+      "numExpectedBytes": 2,
+      "scaleFactor": "1.0 / 8.0",
+      "bias": "-40"
+    },
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 60000,
+    "name": "hvTempPoint15",
+    "description": "HV Battery Temperature Point 15",
+    "icon": "thermometer",
+    "unit": "°C",
+    "deviceClass": "temperature",
+    "measurement": true,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 7868,
+      "header": 402391163,
+      "numResponses": 1,
+      "numExpectedBytes": 2,
+      "scaleFactor": "1.0 / 8.0",
+      "bias": "-40"
+    },
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 60000,
+    "name": "hvTempPoint16",
+    "description": "HV Battery Temperature Point 16",
+    "icon": "thermometer",
+    "unit": "°C",
+    "deviceClass": "temperature",
+    "measurement": true,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 7869,
+      "header": 402391163,
+      "numResponses": 1,
+      "numExpectedBytes": 2,
+      "scaleFactor": "1.0 / 8.0",
+      "bias": "-40"
+    },
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 60000,
+    "name": "hvTempPoint17",
+    "description": "HV Battery Temperature Point 17",
+    "icon": "thermometer",
+    "unit": "°C",
+    "deviceClass": "temperature",
+    "measurement": true,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 29733,
+      "header": 402391163,
+      "numResponses": 1,
+      "numExpectedBytes": 2,
+      "scaleFactor": "1.0 / 8.0",
+      "bias": "-40"
+    },
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 60000,
+    "name": "hvTempPoint18",
+    "description": "HV Battery Temperature Point 18",
+    "icon": "thermometer",
+    "unit": "°C",
+    "deviceClass": "temperature",
+    "measurement": true,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 29734,
+      "header": 402391163,
+      "numResponses": 1,
+      "numExpectedBytes": 2,
+      "scaleFactor": "1.0 / 8.0",
+      "bias": "-40"
+    },
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "int",
+    "enabled": true,
+    "visible": false,
+    "interval": 30000,
+    "name": "hvCoolantRaw",
+    "description": "HV Battery Coolant raw (0x189D)",
+    "icon": "coolant-temperature",
+    "unit": "",
+    "deviceClass": "",
+    "measurement": true,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 6301,
+      "header": 402391163,
+      "numResponses": 1,
+      "numExpectedBytes": 4,
+      "scaleFactor": "1",
+      "responseFormat": 3
+    },
+    "value": {
+      "format": "%d"
+    }
+  },
+  {
+    "type": 1,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "hvCoolantOutlet",
+    "description": "HV Battery Coolant Outlet",
+    "icon": "coolant-temperature",
+    "unit": "°C",
+    "deviceClass": "temperature",
+    "measurement": true,
+    "diagnostic": true,
+    "expr": "floor($hvCoolantRaw / 65536) / 64",
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 1,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "hvCoolantInlet",
+    "description": "HV Battery Coolant Inlet",
+    "icon": "coolant-temperature",
+    "unit": "°C",
+    "deviceClass": "temperature",
+    "measurement": true,
+    "diagnostic": true,
+    "expr": "(($hvCoolantRaw - floor($hvCoolantRaw / 65536) * 65536) - 65536 * floor(($hvCoolantRaw - floor($hvCoolantRaw / 65536) * 65536) / 32768)) / 64",
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "int",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "hvCoolantPump",
+    "description": "HV Battery Coolant Pump",
+    "icon": "pump",
+    "unit": "%",
+    "deviceClass": "",
+    "measurement": true,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 29755,
+      "header": 402391163,
+      "numResponses": 1,
+      "numExpectedBytes": 1,
+      "scaleFactor": "1"
+    },
+    "value": {
+      "format": "%d"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "hvHeaterCurrent",
+    "description": "HV Battery PTC Heater Current",
+    "icon": "heating-coil",
+    "unit": "A",
+    "deviceClass": "current",
+    "measurement": true,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 5664,
+      "header": 402391163,
+      "numResponses": 1,
+      "numExpectedBytes": 1,
+      "scaleFactor": "1.0 / 4.0"
+    },
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "int",
+    "enabled": true,
+    "visible": false,
+    "interval": 300000,
+    "name": "hvEnergyRaw",
+    "description": "HV Battery Energy Counters raw (0x1E32)",
+    "icon": "counter",
+    "unit": "",
+    "deviceClass": "",
+    "measurement": true,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 7730,
+      "header": 402391163,
+      "numResponses": 3,
+      "numExpectedBytes": 4,
+      "scaleFactor": "1"
+    },
+    "value": {
+      "format": "%d"
+    }
+  },
+  {
+    "type": 1,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 300000,
+    "name": "energyCharged",
+    "description": "Total Energy Charged",
+    "icon": "battery-charging",
+    "unit": "kWh",
+    "deviceClass": "energy",
+    "measurement": true,
+    "diagnostic": false,
+    "expr": "($hvEnergyRaw.b12:14 * 65536 + $hvEnergyRaw.b14:16) / 8583.07123641215",
+    "value": {
+      "format": "%.1f"
+    }
+  },
+  {
+    "type": 1,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 300000,
+    "name": "energyDischarged",
+    "description": "Total Energy Discharged",
+    "icon": "battery-arrow-down",
+    "unit": "kWh",
+    "deviceClass": "energy",
+    "measurement": true,
+    "diagnostic": false,
+    "expr": "sqrt(sqr(($hvEnergyRaw.b16:18 - 65536 * floor($hvEnergyRaw.b16:18 / 32768)) * 65536 + $hvEnergyRaw.b18:20)) / 8583.07123641215",
+    "value": {
+      "format": "%.1f"
+    }
+  },
+  {
+    "type": 1,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "maxChargePower",
+    "description": "Available Charge Power",
+    "icon": "ev-station",
+    "unit": "kW",
+    "deviceClass": "power",
+    "measurement": true,
+    "diagnostic": true,
+    "expr": "$maxChargeCurrent * $hvVoltage / 1000",
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 1,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "maxDischargePower",
+    "description": "Available Discharge Power",
+    "icon": "lightning-bolt",
+    "unit": "kW",
+    "deviceClass": "power",
+    "measurement": true,
+    "diagnostic": true,
+    "expr": "$maxDischargeCurrent * $hvVoltage / 1000",
+    "value": {
+      "format": "%4.1f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 60000,
+    "name": "cabinCo2",
+    "description": "Cabin CO2",
+    "icon": "molecule-co2",
+    "unit": "ppm",
+    "deviceClass": "carbon_dioxide",
+    "measurement": true,
+    "diagnostic": false,
+    "pid": {
+      "service": 34,
+      "pid": 17115,
+      "header": 1862,
+      "numResponses": 1,
+      "numExpectedBytes": 2,
+      "scaleFactor": "100.0"
+    },
+    "value": {
+      "format": "%.0f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "int",
+    "enabled": true,
+    "visible": true,
+    "interval": 60000,
+    "name": "airRecirculation",
+    "description": "Air Recirculation (0 fresh, 4 recirc)",
+    "icon": "air-filter",
+    "measurement": false,
+    "diagnostic": false,
+    "pid": {
+      "service": 34,
+      "pid": 9787,
+      "header": 1862,
+      "numResponses": 1,
+      "numExpectedBytes": 1,
+      "scaleFactor": "1.0"
+    },
+    "value": {
+      "format": "%d"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "auxPower",
+    "description": "HV Auxiliary Consumer Power",
+    "icon": "flash",
+    "unit": "kW",
+    "deviceClass": "power",
+    "measurement": true,
+    "diagnostic": false,
+    "pid": {
+      "service": 34,
+      "pid": 868,
+      "header": 402391158,
+      "numResponses": 1,
+      "numExpectedBytes": 2,
+      "scaleFactor": "1.0 / 10.0"
+    },
+    "value": {
+      "format": "%.1f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "int",
+    "enabled": true,
+    "visible": false,
+    "interval": 30000,
+    "name": "lvBatteryVoltageRaw",
+    "description": "12V battery raw (0x710 0x2AF7)",
+    "icon": "car-battery",
+    "unit": "",
+    "deviceClass": "",
+    "measurement": false,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 10999,
+      "header": 1808,
+      "numResponses": 4,
+      "numExpectedBytes": 2,
+      "scaleFactor": "1"
+    },
+    "value": {
+      "format": "%d"
+    }
+  },
+  {
+    "type": 1,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "lvBatteryVoltage",
+    "description": "12V Battery Voltage",
+    "icon": "car-battery",
+    "unit": "V",
+    "deviceClass": "voltage",
+    "measurement": true,
+    "diagnostic": false,
+    "expr": "$lvBatteryVoltageRaw.b4:6 / 1024 + 4.26",
+    "value": {
+      "format": "%.2f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "int",
+    "enabled": true,
+    "visible": false,
+    "interval": 30000,
+    "name": "passengerDoorRaw",
+    "description": "Passenger door status raw (0x74B 0x1948)",
+    "icon": "car-door",
+    "unit": "",
+    "deviceClass": "",
+    "measurement": false,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 6472,
+      "header": 1867,
+      "numResponses": 1,
+      "numExpectedBytes": 1,
+      "scaleFactor": "1"
+    },
+    "value": {
+      "format": "%d"
+    }
+  },
+  {
+    "type": 1,
+    "valueType": "int",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "passengerDoorOpen",
+    "description": "Passenger door open (1 = open)",
+    "icon": "car-door",
+    "unit": "",
+    "deviceClass": "",
+    "measurement": false,
+    "diagnostic": false,
+    "expr": "1 - ($passengerDoorRaw.b4:5 & 8) / 8",
+    "value": {
+      "format": "%d"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "int",
+    "enabled": true,
+    "visible": false,
+    "interval": 30000,
+    "name": "passengerWindowRaw",
+    "description": "Passenger window raw (0x74B 0x1852)",
+    "icon": "car-door",
+    "unit": "",
+    "deviceClass": "",
+    "measurement": false,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 6226,
+      "header": 1867,
+      "numResponses": 1,
+      "numExpectedBytes": 2,
+      "scaleFactor": "1"
+    },
+    "value": {
+      "format": "%d"
+    }
+  },
+  {
+    "type": 1,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "passengerWindow",
+    "description": "Passenger window open (0 = closed, 100 = fully down)",
+    "icon": "window-open-variant",
+    "unit": "%",
+    "deviceClass": "",
+    "measurement": true,
+    "diagnostic": false,
+    "expr": "$passengerWindowRaw.b5:6 / 2",
+    "value": {
+      "format": "%.0f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "int",
+    "enabled": true,
+    "visible": false,
+    "interval": 2000,
+    "name": "driverDoorRaw",
+    "description": "Driver door status raw (0x74A 0x1944)",
+    "icon": "car-door",
+    "unit": "",
+    "deviceClass": "",
+    "measurement": false,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 6468,
+      "header": 1866,
+      "numResponses": 1,
+      "numExpectedBytes": 1,
+      "scaleFactor": "1"
+    },
+    "value": {
+      "format": "%d"
+    }
+  },
+  {
+    "type": 1,
+    "valueType": "int",
+    "enabled": true,
+    "visible": true,
+    "interval": 2000,
+    "name": "driverDoorOpen",
+    "description": "Driver door open (1 = open)",
+    "icon": "car-door",
+    "unit": "",
+    "deviceClass": "",
+    "measurement": false,
+    "diagnostic": false,
+    "expr": "1 - ($driverDoorRaw.b4:5 & 8) / 8",
+    "value": {
+      "format": "%d"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "int",
+    "enabled": true,
+    "visible": false,
+    "interval": 30000,
+    "name": "driverWindowRaw",
+    "description": "Driver window raw (0x74A 0x1842)",
+    "icon": "car-door",
+    "unit": "",
+    "deviceClass": "",
+    "measurement": false,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 6210,
+      "header": 1866,
+      "numResponses": 1,
+      "numExpectedBytes": 2,
+      "scaleFactor": "1"
+    },
+    "value": {
+      "format": "%d"
+    }
+  },
+  {
+    "type": 1,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "driverWindow",
+    "description": "Driver window open (0 = closed, 100 = fully down)",
+    "icon": "window-open-variant",
+    "unit": "%",
+    "deviceClass": "",
+    "measurement": true,
+    "diagnostic": false,
+    "expr": "$driverWindowRaw.b5:6 / 2",
+    "value": {
+      "format": "%.0f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "int",
+    "enabled": true,
+    "visible": false,
+    "interval": 30000,
+    "name": "rearLeftDoorRaw",
+    "description": "Rear left door status raw (0x73E 0x194C)",
+    "icon": "car-door",
+    "unit": "",
+    "deviceClass": "",
+    "measurement": false,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 6476,
+      "header": 1854,
+      "numResponses": 1,
+      "numExpectedBytes": 1,
+      "scaleFactor": "1"
+    },
+    "value": {
+      "format": "%d"
+    }
+  },
+  {
+    "type": 1,
+    "valueType": "int",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "rearLeftDoorOpen",
+    "description": "Rear left door open (1 = open)",
+    "icon": "car-door",
+    "unit": "",
+    "deviceClass": "",
+    "measurement": false,
+    "diagnostic": false,
+    "expr": "1 - ($rearLeftDoorRaw.b4:5 & 8) / 8",
+    "value": {
+      "format": "%d"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "int",
+    "enabled": true,
+    "visible": false,
+    "interval": 30000,
+    "name": "rearLeftWindowRaw",
+    "description": "Rear left window raw (0x73E 0x1942)",
+    "icon": "car-door",
+    "unit": "",
+    "deviceClass": "",
+    "measurement": false,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 6466,
+      "header": 1854,
+      "numResponses": 1,
+      "numExpectedBytes": 2,
+      "scaleFactor": "1"
+    },
+    "value": {
+      "format": "%d"
+    }
+  },
+  {
+    "type": 1,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "rearLeftWindow",
+    "description": "Rear left window open (0 = closed, 100 = fully down)",
+    "icon": "window-open-variant",
+    "unit": "%",
+    "deviceClass": "",
+    "measurement": true,
+    "diagnostic": false,
+    "expr": "$rearLeftWindowRaw.b5:6 / 2",
+    "value": {
+      "format": "%.0f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "int",
+    "enabled": true,
+    "visible": false,
+    "interval": 30000,
+    "name": "rearRightDoorRaw",
+    "description": "Rear right door status raw (0x73F 0x1950)",
+    "icon": "car-door",
+    "unit": "",
+    "deviceClass": "",
+    "measurement": false,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 6480,
+      "header": 1855,
+      "numResponses": 1,
+      "numExpectedBytes": 1,
+      "scaleFactor": "1"
+    },
+    "value": {
+      "format": "%d"
+    }
+  },
+  {
+    "type": 1,
+    "valueType": "int",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "rearRightDoorOpen",
+    "description": "Rear right door open (1 = open)",
+    "icon": "car-door",
+    "unit": "",
+    "deviceClass": "",
+    "measurement": false,
+    "diagnostic": false,
+    "expr": "1 - ($rearRightDoorRaw.b4:5 & 8) / 8",
+    "value": {
+      "format": "%d"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "int",
+    "enabled": true,
+    "visible": false,
+    "interval": 30000,
+    "name": "rearRightWindowRaw",
+    "description": "Rear right window raw (0x73F 0x1952)",
+    "icon": "car-door",
+    "unit": "",
+    "deviceClass": "",
+    "measurement": false,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 6482,
+      "header": 1855,
+      "numResponses": 1,
+      "numExpectedBytes": 2,
+      "scaleFactor": "1"
+    },
+    "value": {
+      "format": "%d"
+    }
+  },
+  {
+    "type": 1,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "rearRightWindow",
+    "description": "Rear right window open (0 = closed, 100 = fully down)",
+    "icon": "window-open-variant",
+    "unit": "%",
+    "deviceClass": "",
+    "measurement": true,
+    "diagnostic": false,
+    "expr": "$rearRightWindowRaw.b5:6 / 2",
+    "value": {
+      "format": "%.0f"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "int",
+    "enabled": false,
+    "visible": false,
+    "interval": 30000,
+    "name": "tailgateRaw",
+    "description": "Tailgate status raw (0x70E 0x1020, 253 bytes) - disabled, does not reflect physical state",
+    "icon": "car-back",
+    "unit": "",
+    "deviceClass": "",
+    "measurement": false,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 4128,
+      "header": 1806,
+      "numResponses": 0,
+      "numExpectedBytes": 1,
+      "scaleFactor": "1"
+    },
+    "value": {
+      "format": "%d"
+    }
+  },
+  {
+    "type": 1,
+    "valueType": "int",
+    "enabled": false,
+    "visible": false,
+    "interval": 30000,
+    "name": "tailgateOpen",
+    "description": "Tailgate open (1 = open) - disabled, DID 0x1020 does not track physical state",
+    "icon": "car-back",
+    "unit": "",
+    "deviceClass": "",
+    "measurement": false,
+    "diagnostic": false,
+    "expr": "($tailgateRaw.b67:68 & 8) / 8",
+    "value": {
+      "format": "%d"
+    }
+  },
+  {
+    "type": 0,
+    "valueType": "int",
+    "enabled": false,
+    "visible": false,
+    "interval": 30000,
+    "name": "bonnetRaw",
+    "description": "Bonnet status raw (0x70E 0x3ADD) - disabled, does not reflect physical state",
+    "icon": "car-lifted-pickup",
+    "unit": "",
+    "deviceClass": "",
+    "measurement": false,
+    "diagnostic": true,
+    "pid": {
+      "service": 34,
+      "pid": 15069,
+      "header": 1806,
+      "numResponses": 1,
+      "numExpectedBytes": 1,
+      "scaleFactor": "1"
+    },
+    "value": {
+      "format": "%d"
+    }
+  },
+  {
+    "type": 1,
+    "valueType": "int",
+    "enabled": false,
+    "visible": false,
+    "interval": 30000,
+    "name": "bonnetOpen",
+    "description": "Bonnet open (1 = open) - disabled, DID 0x3ADD does not track physical state",
+    "icon": "car-lifted-pickup",
+    "unit": "",
+    "deviceClass": "",
+    "measurement": false,
+    "diagnostic": false,
+    "expr": "min($bonnetRaw.b4:5, 1)",
+    "value": {
+      "format": "%d"
+    }
+  },
+  {
+    "type": 1,
+    "valueType": "float",
+    "enabled": true,
+    "visible": true,
+    "interval": 30000,
+    "name": "rangeEstimate",
+    "description": "Estimated range (SoC x usable capacity / efficiency, 0.18 kWh/km)",
+    "icon": "map-marker-distance",
+    "unit": "km",
+    "deviceClass": "distance",
+    "measurement": true,
+    "diagnostic": false,
+    "expr": "$hvMaxEnergy * ($soc / 100) / 0.18",
+    "value": {
+      "format": "%.0f"
+    }
+  }
+]
