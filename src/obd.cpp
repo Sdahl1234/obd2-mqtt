@@ -17,6 +17,9 @@
 
 #include "obd.h"
 
+#include <LittleFS.h>
+#include <esp_heap_caps.h>
+#include <rom/miniz.h>
 #include <OBDStates.h>
 #include <ExprParser.h>
 #include "helper.h"
@@ -202,8 +205,60 @@ void OBDClass::fromJSON(T *state, JsonDocument &doc) {
     state->setUpdateInterval(doc["interval"].as<long>());
 }
 
+// the miniz work structs are large (tdefl ~300 KB), so keep them in PSRAM
+static void *psAlloc(const size_t size) {
+    void *p = heap_caps_malloc(size, MALLOC_CAP_SPIRAM);
+    return p != nullptr ? p : malloc(size);
+}
+
+static size_t fileBlocks(FS &fs, const char *path) {
+    size_t size = 0;
+    if (File f = fs.open(path, FILE_READ)) {
+        size = (f.size() + 4095) / 4096 * 4096;
+        f.close();
+    }
+    return size;
+}
+
+// compressed states file layout: uint32 raw JSON length, then a raw deflate stream
+static bool readCompressedStates(FS &fs, JsonDocument &doc) {
+    File file = fs.open(STATES_FILE_Z, FILE_READ);
+    if (!file || file.isDirectory() || file.size() <= 4) {
+        return false;
+    }
+
+    uint32_t rawSize = 0;
+    size_t compSize = file.size() - 4;
+    file.read(reinterpret_cast<uint8_t *>(&rawSize), sizeof(rawSize));
+
+    auto *comp = static_cast<uint8_t *>(psAlloc(compSize));
+    auto *raw = static_cast<uint8_t *>(psAlloc(rawSize));
+    auto *inflator = static_cast<tinfl_decompressor *>(psAlloc(sizeof(tinfl_decompressor)));
+    bool ok = false;
+    if (comp != nullptr && raw != nullptr && inflator != nullptr && file.read(comp, compSize) == compSize) {
+        tinfl_init(inflator);
+        size_t outSize = rawSize;
+        const tinfl_status status = tinfl_decompress(inflator, comp, &compSize, raw, raw, &outSize,
+                                                     TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF);
+        ok = status == TINFL_STATUS_DONE && outSize == rawSize && !deserializeJson(doc, raw, rawSize);
+    }
+    file.close();
+    free(inflator);
+    free(raw);
+    free(comp);
+
+    Serial.printf("Read states: %s (%u bytes)\n", ok ? "ok" : "FAILED", rawSize);
+    return ok;
+}
+
 bool OBDClass::readStates(FS &fs) {
     bool success = false;
+
+    JsonDocument zdoc;
+    if (readCompressedStates(fs, zdoc)) {
+        readJSON(zdoc);
+        return true;
+    }
 
     File file = fs.open(STATES_FILE, FILE_READ);
     if (file && !file.isDirectory()) {
@@ -288,20 +343,79 @@ void OBDClass::writeJSON(JsonDocument &doc) {
 }
 
 bool OBDClass::writeStates(FS &fs) {
-    bool success = false;
+    JsonDocument doc;
+    writeJSON(doc);
+    const size_t rawSize = measureJson(doc);
 
-    File file = fs.open(STATES_FILE, FILE_WRITE);
-    if (!file) {
-        Serial.println("Failed to open file settings.json for writing.");
+    auto *raw = static_cast<char *>(psAlloc(rawSize + 1));
+    const size_t compCap = rawSize + 1024;
+    auto *comp = static_cast<uint8_t *>(psAlloc(compCap));
+    auto *deflator = static_cast<tdefl_compressor *>(psAlloc(sizeof(tdefl_compressor)));
+    size_t compSize = 0;
+    if (raw != nullptr && comp != nullptr && deflator != nullptr &&
+        serializeJson(doc, raw, rawSize + 1) == rawSize &&
+        tdefl_init(deflator, nullptr, nullptr, TDEFL_DEFAULT_MAX_PROBES) == TDEFL_STATUS_OKAY) {
+        size_t inSize = rawSize;
+        compSize = compCap;
+        if (tdefl_compress(deflator, raw, &inSize, comp, &compSize, TDEFL_FINISH) != TDEFL_STATUS_DONE) {
+            compSize = 0;
+        }
+    }
+    free(deflator);
+    // round-trip in RAM before any file is touched, the old profile must survive a codec problem
+    if (compSize != 0) {
+        auto *check = static_cast<char *>(psAlloc(rawSize));
+        auto *inflator = static_cast<tinfl_decompressor *>(psAlloc(sizeof(tinfl_decompressor)));
+        size_t inSize = compSize;
+        size_t outSize = rawSize;
+        bool same = false;
+        if (check != nullptr && inflator != nullptr) {
+            tinfl_init(inflator);
+            same = tinfl_decompress(inflator, comp, &inSize, reinterpret_cast<mz_uint8 *>(check),
+                                    reinterpret_cast<mz_uint8 *>(check), &outSize,
+                                    TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF) == TINFL_STATUS_DONE &&
+                   outSize == rawSize && memcmp(check, raw, rawSize) == 0;
+        }
+        free(inflator);
+        free(check);
+        if (!same) {
+            compSize = 0;
+        }
+    }
+    free(raw);
+    if (compSize == 0) {
+        free(comp);
+        Serial.println("Write states: compression FAILED, old profile kept");
         return false;
     }
 
-    JsonDocument doc;
-    writeJSON(doc);
-    success = serializeJson(doc, file);
+    const size_t needed = compSize + sizeof(uint32_t);
+    const size_t freeBytes = LittleFS.totalBytes() - LittleFS.usedBytes() +
+                             fileBlocks(fs, STATES_FILE) + fileBlocks(fs, STATES_FILE_Z);
+    // LittleFS crashes (divide by zero in lfs_alloc) instead of failing when it runs out of blocks
+    if (needed + 512 > freeBytes) {
+        free(comp);
+        Serial.printf("Write states: NOT ENOUGH SPACE (%u bytes needed, %u free), old profile kept\n",
+                      needed, freeBytes);
+        return false;
+    }
 
-    file.close();
+    // LittleFS is copy-on-write, so remove the old files first to free their blocks on the small partition
+    fs.remove(STATES_FILE_Z);
+    fs.remove(STATES_FILE);
 
+    bool success = false;
+    File file = fs.open(STATES_FILE_Z, FILE_WRITE);
+    if (file) {
+        const uint32_t header = rawSize;
+        success = file.write(reinterpret_cast<const uint8_t *>(&header), sizeof(header)) == sizeof(header) &&
+                  file.write(comp, compSize) == compSize;
+        file.close();
+    }
+    free(comp);
+
+    Serial.printf("Write states: %s (%u bytes, %u compressed), LittleFS %u/%u bytes used\n",
+                  success ? "ok" : "FAILED", rawSize, needed, LittleFS.usedBytes(), LittleFS.totalBytes());
     return success;
 }
 
@@ -638,7 +752,7 @@ connect:
 #ifdef USE_BLE
     if (!stopConnect && !serialBLE.isClosed() && serialBLE.connected()) {
         int retryCount = 0;
-        while (!elm327.begin(serialBLE, debug, 2000, protocol) && retryCount < 3) {
+        while (!elm327.begin(serialBLE, debug, 2000, protocol, 768) && retryCount < 3) {
             Serial.println("Couldn't connect to OBD scanner - Phase 2");
             delay(BT_DISCOVER_TIME);
             retryCount++;
@@ -646,7 +760,7 @@ connect:
 #else
     if (!stopConnect && !serialBt.isClosed() && serialBt.connected()) {
         int retryCount = 0;
-        while (!elm327.begin(serialBt, debug, 2000, protocol) && retryCount < 3) {
+        while (!elm327.begin(serialBt, debug, 2000, protocol, 768) && retryCount < 3) {
             Serial.println("Couldn't connect to OBD scanner - Phase 2");
             delay(BT_DISCOVER_TIME);
             retryCount++;
@@ -676,6 +790,13 @@ connect:
     }
 
     Serial.println("Connected to ELM327");
+
+    // ELMduino leaves the adapter on "AT TP A<p>" (auto search); store the fixed protocol so AT D never searches
+    if (protocol != AUTOMATIC) {
+        char cmd[10];
+        snprintf(cmd, sizeof(cmd), "AT SP %c", protocol);
+        elm327.sendCommand_Blocking(cmd);
+    }
 
     if (connectedCallback) {
         connectedCallback();
@@ -721,6 +842,11 @@ void OBDClass::loop() {
         nextState();
 #endif
     } else {
+        static unsigned long lastSkipLog = 0;
+        if (millis() - lastSkipLog > 10000) {
+            lastSkipLog = millis();
+            Serial.printf("OBD loop skipped (stopConnect=%d)\n", stopConnect);
+        }
         delay(500);
     }
 }

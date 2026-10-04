@@ -436,6 +436,11 @@ bool GSM::checkNetwork(bool resetConnection) {
             }
             Serial.println("...success");
             reconnectAttempts = 0;
+
+            // a hardware modem reset clears all AT-configured state, including GPS enable/baud
+            if (hasGPSLocation()) {
+                enableGPS();
+            }
         }
 
 #if defined(LILYGO_T_A7670) or defined(LILYGO_T_CALL_A7670_V1_0) or defined(LILYGO_T_CALL_A7670_V1_1) or defined(LILYGO_T_A7608X) or defined(LILYGO_SIM7000G) or defined(LILYGO_SIM7070G)

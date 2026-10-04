@@ -33,6 +33,8 @@ class OBDStates {
 
     static bool compareStates(const OBDState *a, const OBDState *b);
 
+    static long dueTime(const OBDState *state);
+
     void setCustomFunctions(const std::map<const char *, const std::function<double(double)>> &funcs);
 
     template<typename T>

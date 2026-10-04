@@ -414,12 +414,38 @@ void TypedOBDState<T>::readValue() {
                     this->setHeader = false;
                     char command[20] = {'\0'};
                     char h[10] = {'\0'};
+                    const bool header11Bit = header <= 0x7FF;
+                    if (header11Bit) {
+                        // switch to 11-bit CAN until the AT D below; M0 keeps the stored protocol unchanged
+                        elm327->sendCommand_Blocking("AT M0");
+                        elm327->sendCommand_Blocking("AT TP 6");
+                        // VW 11-bit reply IDs don't follow request+8, accept any 7xx
+                        elm327->sendCommand_Blocking("AT CF 700");
+                        elm327->sendCommand_Blocking("AT CM 700");
+                    }
                     snprintf(h, sizeof(h), "%X", header);
                     snprintf(command, sizeof(command), SET_HEADER, h);
                     if (elm327->sendCommand_Blocking(command) == ELM_SUCCESS) {
                         if (strstr(elm327->payload, RESPONSE_OK) != nullptr) {
                             this->setHeader = true;
                         }
+                    }
+                    // ensures the AT D after the read restores the 29-bit protocol
+                    if (header11Bit) {
+                        this->setHeader = true;
+                    }
+                    const bool mebHeader = ((header >> 16) & 0xFF) == 0xFC;
+                    // VW MEB answers 17FCxxxx requests from 17FExxxx, which the ELM327 auto filter drops
+                    if (this->setHeader && mebHeader) {
+                        snprintf(command, sizeof(command), "AT CRA %X", header | 0x00020000);
+                        elm327->sendCommand_Blocking(command);
+                    }
+                    // ELM327 only auto-sends flow control for standard IDs, multi-frame replies need it set manually
+                    if (this->setHeader && (mebHeader || header11Bit) && this->numResponses != 1) {
+                        snprintf(command, sizeof(command), "AT FC SH %X", header);
+                        elm327->sendCommand_Blocking(command);
+                        elm327->sendCommand_Blocking("AT FC SD 30 00 00");
+                        elm327->sendCommand_Blocking("AT FC SM 1");
                     }
                 }
 
@@ -428,6 +454,11 @@ void TypedOBDState<T>::readValue() {
                 this->processing = true;
             }
 
+            // numResponses 0 = no frame count in the query (ELM327 only accepts 1-9 here)
+            const bool specifyNumResponses = elm327->specifyNumResponses;
+            if (this->numResponses == 0) {
+                elm327->specifyNumResponses = false;
+            }
             T value = static_cast<T>(this->readFunction != nullptr
                                          ? this->readFunction()
                                          : this->responseFormat == obd::PREDEFINED
@@ -446,24 +477,41 @@ void TypedOBDState<T>::readValue() {
                                                    this->responseFormat, this->scaleFactor, this->bias
                                                )
             );
+            elm327->specifyNumResponses = specifyNumResponses;
 
             if (elm327->nb_rx_state == ELM_SUCCESS) {
-                this->setPayload(elm327->payload);
-                this->value = value;
+                // single-frame payloads still start with the echoed query (AT D re-enables echo)
+                char responseHeader[10];
+                snprintf(responseHeader, sizeof(responseHeader), this->pid > 0xFF ? "%02X%04X" : "%02X%02X",
+                         this->service + 0x40, this->pid);
+                const char *response = strstr(elm327->payload, responseHeader);
+                // all data bytes 0xFF = ECU reports "no valid value" (e.g. half asleep), keep the last value
+                const char *data = response != nullptr ? response + strlen(responseHeader) : "";
+                const bool invalid = *data != '\0' && strspn(data, "F") == strlen(data);
+                if (invalid) {
+                    this->lastUpdate = millis();
+                    this->processing = false;
+                    this->updateStatus = ELM_NO_DATA;
+                } else {
+                    this->setPayload(response != nullptr ? response : elm327->payload);
+                    this->value = value;
 
-                if (this->postProcessFunction != nullptr) {
-                    this->postProcessFunction(this);
+                    if (this->postProcessFunction != nullptr) {
+                        this->postProcessFunction(this);
+                    }
+
+                    this->lastUpdate = millis();
+                    this->processing = false;
+                    this->updateStatus = elm327->nb_rx_state;
                 }
-
-                this->lastUpdate = millis();
-                this->processing = false;
-                this->updateStatus = elm327->nb_rx_state;
             } else if (elm327->nb_rx_state == ELM_NO_DATA) {
-                this->value = 0;
+                // sleeping ECUs answer NO DATA; keep the last known value instead of publishing 0
                 this->lastUpdate = millis();
                 this->processing = false;
                 this->updateStatus = elm327->nb_rx_state;
             } else if (elm327->nb_rx_state != ELM_GETTING_MSG) {
+                // keep the old value but retry only after the interval, otherwise one failing PID blocks all others
+                this->lastUpdate = millis();
                 this->processing = false;
                 this->updateStatus = elm327->nb_rx_state;
             }

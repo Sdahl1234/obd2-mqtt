@@ -93,7 +93,7 @@ char *ExprParser::resolveVariables(char *expression) {
         }
 
         if (start != -1 && end != -1) {
-            snprintf(var, 32, "%.8g", varResolveFunction(varName));
+            snprintf(var, 32, "%.17g", varResolveFunction(varName));
 
             pos = start;
             varPos = 0;
@@ -366,7 +366,12 @@ void ExprParser::getToken() {
         tokType = (*exp_ptr == '(') ? FUNCTION : VARIABLE;
     } else if (isdigit(*exp_ptr) || *exp_ptr == '.') {
         while (!strchr(" +-/*%^&|=(),\t\r", *exp_ptr) && (*exp_ptr)) {
-            *temp++ = toupper(*exp_ptr++);
+            const char c = toupper(*exp_ptr++);
+            *temp++ = c;
+            // exponent sign, e.g. 9.9e+08 from a substituted variable
+            if (c == 'E' && (*exp_ptr == '+' || *exp_ptr == '-')) {
+                *temp++ = *exp_ptr++;
+            }
         }
         tokType = NUMBER;
     }

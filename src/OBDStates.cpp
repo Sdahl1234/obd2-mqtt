@@ -64,7 +64,12 @@ void OBDStates::getStates(const std::function<bool(OBDState *)> &pred, std::vect
 
 bool OBDStates::compareStates(const OBDState *a, const OBDState *b) {
     return a->isProcessing() && !b->isProcessing()
-           || (a->getLastUpdate() + a->getUpdateInterval()) < (b->getLastUpdate() + b->getUpdateInterval());
+           || dueTime(a) < dueTime(b);
+}
+
+// never-read states are due immediately instead of one full interval after boot
+long OBDStates::dueTime(const OBDState *state) {
+    return state->getLastUpdate() == 0 ? 0 : state->getLastUpdate() + state->getUpdateInterval();
 }
 
 template<typename T>
@@ -189,8 +194,17 @@ OBDState *OBDStates::nextState() {
         }, readStates);
         sort(readStates.begin(), readStates.end(), compareStates);
 
+        if (readStates.empty()) {
+            return nullptr;
+        }
         OBDState &state = *readStates.at(0);
-        if (state.getUpdateInterval() == -1 || state.getLastUpdate() + state.getUpdateInterval() < millis()) {
+        static unsigned long lastIdleLog = 0;
+        if (!(state.getUpdateInterval() == -1 || dueTime(&state) < millis()) && millis() - lastIdleLog > 10000) {
+            lastIdleLog = millis();
+            Serial.printf("Next state %s due %ld, now %lu, processing %d\n", state.getName(), dueTime(&state),
+                          millis(), state.isProcessing());
+        }
+        if (state.getUpdateInterval() == -1 || dueTime(&state) < millis()) {
             // int aFreeInternalHeapSizeBefore = heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
 
             if (state.getType() ==  obd::READ) {

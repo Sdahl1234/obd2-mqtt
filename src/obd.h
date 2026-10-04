@@ -36,6 +36,7 @@
 #endif
 
 #define STATES_FILE          "/states.json"
+#define STATES_FILE_Z        "/states.z"
 
 #define BT_DISCOVER_TIME    10000
 

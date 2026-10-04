@@ -54,6 +54,11 @@
 #define HA_T_GPS_LOC            "gpsLocation"
 #define HAT_T_DTC               "dtc"
 #define HAT_T_CLEAR_DTC         "clearDTC"
+#define HAT_T_OBD_POLLING       "obdPolling"
+#define HAT_T_OBD_RESUME        "obdResume"
+#define HAT_T_OBD_PAUSE         "obdPause"
+// VW triggers the alarm on any diagnostic request while locked; pause when the driver gets out
+#define AUTO_PAUSE_DOOR_STATE   "driverDoorOpen"
 
 #include <numeric>
 
@@ -114,6 +119,16 @@ std::atomic<float> gpsLongitude{0};
 std::atomic<float> gpsAccuracy{0};
 
 std::atomic_bool clearDTC{false};
+std::atomic_bool obdPolling{false};
+std::atomic_bool obdPollingChanged{true};
+
+void setOBDPolling(const bool enabled, const char *reason) {
+    if (obdPolling != enabled) {
+        obdPolling = enabled;
+        obdPollingChanged = true;
+        DEBUG_PORT.printf("OBD polling %s (%s)\n", enabled ? "resumed" : "paused", reason);
+    }
+}
 
 TaskHandle_t outputTaskHdl;
 TaskHandle_t stateTaskHdl;
@@ -280,12 +295,12 @@ void startHttpServer() {
                     if (index + len == total) {
                         auto json = std::string(static_cast<const char *>(request->_tempObject), total);
                         if (OBD.parseJSON(json)) {
-                            if (OBD.writeStates(LittleFS)) {
-                                request->send(200);
-                            }
+                            request->send(OBD.writeStates(LittleFS) ? 200 : 507);
                         } else {
                             request->send(500);
                         }
+                        free(request->_tempObject);
+                        request->_tempObject = nullptr;
                     }
                 }
             } else {
@@ -436,6 +451,14 @@ bool sendDiscoveryData() {
     bool allowOffline = Settings.MQTT.getAllowOffline();
 
     consoleSendHeader("discovery");
+
+    allSendsSuccessed |= mqtt.sendTopicConfig(HAT_T_OBD_POLLING, "OBD polling", "car-connected", "", "", "", "",
+                                              TT_B_SENSOR, "", allowOffline);
+    allSendsSuccessed |= mqtt.sendTopicConfig(HAT_T_OBD_RESUME, "OBD resume", "play", "", "", "", "", TT_BUTTON);
+    allSendsSuccessed |= mqtt.sendTopicConfig(HAT_T_OBD_PAUSE, "OBD pause", "pause", "", "", "", "", TT_BUTTON);
+    mqtt.subscribe(HAT_T_OBD_RESUME, [](const char *) { setOBDPolling(true, "MQTT"); });
+    mqtt.subscribe(HAT_T_OBD_PAUSE, [](const char *) { setOBDPolling(false, "MQTT"); });
+    obdPollingChanged = true;
 
     std::vector<OBDState *> states{};
     OBD.getStates([](const OBDState *state) {
@@ -792,7 +815,7 @@ void mqttSendData() {
             }
         }
 
-        if (obdConnected) {
+        if (obdConnected && obdPolling) {
             if (millis() > lastMQTTStaticDiagnosticOutput) {
                 if (sendStaticDiagnosticData()) {
                     lastMQTTStaticDiagnosticOutput = calcTimestamp(Settings.MQTT.getDiagnosticInterval() * 2);
@@ -814,7 +837,10 @@ void mqttSendData() {
             }
         } else if (mqtt.sendTopicUpdate(LWT_TOPIC, LWT_CONNECTED)) {
             const uint iv = Settings.MQTT.getDataInterval() * 5;
-            lastMQTTOutput = calcTimestamp(iv < MQTT_KEEPALIVE ? iv : MQTT_KEEPALIVE - 1);
+            // while paused keep the normal pace so location updates are not delayed
+            lastMQTTOutput = calcTimestamp(obdConnected
+                                               ? Settings.MQTT.getDataInterval()
+                                               : iv < MQTT_KEEPALIVE ? iv : MQTT_KEEPALIVE - 1);
         }
     } else {
         delay(500);
@@ -822,8 +848,18 @@ void mqttSendData() {
 }
 
 [[noreturn]] void readStatesTask(void *parameters) {
+    long doorLastUpdate = 0;
+    int doorOpen = -1;
+    bool wasPolling = false;
     for (;;) {
-        if (!wifiAPInUse) {
+        if (wasPolling != obdPolling) {
+            wasPolling = obdPolling;
+            DEBUG_PORT.printf("ReadStatesTask: polling %d, AP in use %d, free heap %u\n", wasPolling,
+                              static_cast<bool>(wifiAPInUse), ESP.getFreeHeap());
+        }
+        if (!wifiAPInUse && !obdPolling) {
+            doorOpen = -1;
+        } else if (!wifiAPInUse) {
             if (clearDTC) {
                 DEBUG_PORT.print("DTC reset ");
                 if (OBD.resetDTCs()) {
@@ -835,6 +871,17 @@ void mqttSendData() {
             }
 
             OBD.loop();
+
+            const OBDState *door = OBD.getStateByName(AUTO_PAUSE_DOOR_STATE);
+            if (door != nullptr && door->getLastUpdate() != doorLastUpdate) {
+                doorLastUpdate = door->getLastUpdate();
+                const int open = OBD.getStateValue(AUTO_PAUSE_DOOR_STATE, 0);
+                // only a closed -> open change pauses, so resuming with the door open is possible
+                if (doorOpen == 0 && open == 1) {
+                    setOBDPolling(false, "driver door opened");
+                }
+                doorOpen = open;
+            }
         }
         delay(10);
     }
@@ -881,6 +928,10 @@ void mqttSendData() {
             }
 
             mqtt.loop();
+
+            if (obdPollingChanged && mqtt.sendTopicUpdate(HAT_T_OBD_POLLING, obdPolling ? "on" : "off")) {
+                obdPollingChanged = false;
+            }
 
             if ((GSM::hasGSMLocation() || GSM::hasGPSLocation()) && millis() > checkInterval) {
                 unsigned long start = millis();
@@ -973,9 +1024,12 @@ void startReadTask() {
 #else
         OBD.onDevicesDiscovered(onBTDevicesDiscovered);
 #endif
-        OBD.connect();
+        // create the task before Bluetooth fragments the heap; it stays idle until polling is resumed
+        const BaseType_t created = xTaskCreatePinnedToCore(readStatesTask, "ReadStatesTask", 9216, nullptr, 1,
+                                                           &stateTaskHdl, 1);
+        DEBUG_PORT.printf("ReadStatesTask created: %d, free heap %u\n", created, ESP.getFreeHeap());
 
-        xTaskCreatePinnedToCore(readStatesTask, "ReadStatesTask", 9216, nullptr, 1, &stateTaskHdl, 1);
+        OBD.connect();
     }
 }
 
@@ -997,6 +1051,7 @@ void setup() {
 
     Settings.readSettings(LittleFS);
     OBD.readStates(LittleFS);
+    DEBUG_PORT.printf("LittleFS %u/%u bytes used\n", LittleFS.usedBytes(), LittleFS.totalBytes());
 
     // disable Watch Dog for Core 0 - should fix crashes
     disableCore0WDT();

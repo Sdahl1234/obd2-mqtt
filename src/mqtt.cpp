@@ -50,6 +50,7 @@ void MQTT::callback(const char *topic, const byte *payload, const unsigned int l
         msg[i] = static_cast<char>(payload[i]);
     }
     msg[length] = '\0';
+    Serial.printf("MQTT received %s: %s\n", topic, msg);
 
     for (auto &sub: subscriptions) {
         if (sub->getTopic() == topic) {
@@ -79,7 +80,7 @@ bool MQTT::hasSubscription(const std::string &field) const {
 void MQTT::addSubscription(const std::string &field, const std::string &topic) {
     if (!hasSubscription(field)) {
         subscriptions.push_back(new MQTTSubscription(field, topic));
-        mqtt.subscribe(topic.c_str());
+        Serial.printf("MQTT subscribe %s: %s\n", topic.c_str(), mqtt.subscribe(topic.c_str()) ? "ok" : "FAILED");
     }
 }
 
